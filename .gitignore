@@ -1,0 +1,48 @@
+__pycache__/
+*.pyc
+backend/rotahub.db
+backend/rotahub.db-shm
+backend/rotahub.db-wal
+backend/.secret_key
+.env
+.env.*
+!.env.example
+node_modules/
+
+# Virtualenv (Python)
+venv/
+.venv/
+env/
+ENV/
+
+# Caches de ferramentas
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.whl
+
+# Binarios de terceiros (regeneravel via README)
+cloudflared.exe
+
+# Logs e temporarios
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

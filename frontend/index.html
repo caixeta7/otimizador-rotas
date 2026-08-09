@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>RotaHub</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=9">
+</head>
+<body>
+
+<!-- ===== TELA DE LOGIN ===== -->
+<section id="screen-login" class="screen screen-login">
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-mark">RH</span>
+      <div class="brand-text">
+        <h1>RotaHub</h1>
+        <p class="eyebrow">planejamento de entregas</p>
+      </div>
+    </div>
+    <div class="user-picker" id="user-picker">
+      <button class="user-chip" data-user="matheus">Matheus</button>
+      <button class="user-chip" data-user="bruna">Bruna</button>
+      <button class="user-chip" data-user="paulo">Paulo</button>
+    </div>
+    <form id="login-form">
+      <input type="hidden" id="login-username" value="matheus">
+      <label class="field">
+        <span>Senha</span>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+      <p class="login-error" id="login-error" hidden></p>
+    </form>
+  </div>
+</section>
+
+<!-- ===== TELA: LISTA DE ROTAS ===== -->
+<section id="screen-routes" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-brand"><span class="brand-mark small">RH</span> RotaHub</div>
+    <div class="topbar-user">
+      <span id="current-user-label"></span>
+      <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
+    </div>
+  </header>
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow">suas rotas</p>
+        <h2>Rotas de entrega</h2>
+      </div>
+      <button class="btn btn-primary" id="btn-new-route">+ Nova rota</button>
+    </div>
+    <div class="route-list" id="route-list"></div>
+    <p class="empty-state" id="routes-empty" hidden>Nenhuma rota ainda. Crie a primeira acima.</p>
+  </main>
+</section>
+
+<!-- ===== TELA: IMPORTAR / PREPARAR ROTA ===== -->
+<section id="screen-prepare" class="screen" hidden>
+  <header class="topbar">
+    <button class="btn btn-ghost btn-sm" id="btn-back-to-routes">&larr; Rotas</button>
+    <div class="topbar-title" id="prepare-route-name"></div>
+    <div></div>
+  </header>
+  <main class="page">
+    <div class="prepare-grid">
+      <div class="card">
+        <p class="eyebrow">passo 1</p>
+        <h3>Importar planilha</h3>
+        <p class="muted">Aceita o arquivo bruto da Shopee (por pacote) ou o processado pelo Circuit (por parada). O formato é detectado automaticamente.</p>
+        <div class="dropzone" id="dropzone">
+          <span id="dropzone-label">Selecionar arquivo .xlsx</span>
+          <input type="file" id="file-input"
+                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream">
+        </div>
+        <p class="import-status" id="import-status"></p>
+      </div>
+
+      <div class="card" id="summary-card" hidden>
+        <p class="eyebrow">resumo da importação</p>
+        <h3>Paradas identificadas</h3>
+        <div class="stat-row">
+          <div class="stat"><span class="stat-value" id="stat-stops">0</span><span class="stat-label">paradas</span></div>
+          <div class="stat"><span class="stat-value" id="stat-packages">0</span><span class="stat-label">pacotes</span></div>
+          <div class="stat"><span class="stat-value" id="stat-review">0</span><span class="stat-label">p/ revisar</span></div>
+        </div>
+        <button class="btn btn-accent btn-block" id="btn-optimize">Calcular melhor rota</button>
+        <button class="btn btn-ghost btn-block" id="btn-verify" hidden>Verificar endereços com Nominatim</button>
+        <p class="import-status" id="optimize-status"></p>
+      </div>
+
+      <div class="card" id="optimized-card" hidden>
+        <p class="eyebrow">passo 2 — concluído</p>
+        <h3>Rota otimizada</h3>
+        <div class="stat-row">
+          <div class="stat"><span class="stat-value" id="stat-distance">0</span><span class="stat-label">km</span></div>
+          <div class="stat"><span class="stat-value" id="stat-duration">0</span><span class="stat-label">min rota</span></div>
+          <div class="stat"><span class="stat-value" id="stat-source">–</span><span class="stat-label">fonte</span></div>
+        </div>
+        <button class="btn btn-primary btn-block" id="btn-start-route">Iniciar entregas</button>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ===== MODAL: VERIFICAR ENDERECOS ===== -->
+<div class="modal-backdrop" id="modal-verify" hidden>
+  <div class="modal modal-wide">
+    <h3>Verificação de endereços</h3>
+    <p class="muted" id="verify-summary">Checando coordenadas contra Nominatim...</p>
+    <div class="verify-progress" id="verify-progress">
+      <div class="verify-progress-bar" id="verify-progress-bar"></div>
+    </div>
+    <div class="verify-results" id="verify-results"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" id="btn-verify-close">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TELA: ROTA EM ANDAMENTO (mapa + painel) ===== -->
+<section id="screen-active" class="screen" hidden>
+  <header class="topbar">
+    <button class="btn btn-ghost btn-sm" id="btn-back-to-routes-2">&larr; Rotas</button>
+    <div class="topbar-title" id="active-route-name"></div>
+    <div class="progress-pill" id="progress-pill">0 / 0</div>
+  </header>
+  <main class="active-layout">
+    <div id="map"></div>
+    <aside class="sidepanel" id="sidepanel">
+      <div class="sidepanel-head">
+        <h3>Paradas</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-collapse-panel">–</button>
+      </div>
+      <div class="stop-list" id="stop-list"></div>
+    </aside>
+  </main>
+
+  <div class="action-bar" id="action-bar" hidden>
+    <div class="action-bar-info">
+      <span class="action-seq" id="action-seq">#1</span>
+      <div>
+        <strong id="action-address">—</strong>
+        <span id="action-complement" class="muted"></span>
+      </div>
+    </div>
+    <div class="action-bar-buttons">
+      <button class="btn btn-ghost" id="btn-navigate">Navegar</button>
+      <button class="btn btn-ghost" id="btn-skip">Pular</button>
+      <button class="btn btn-accent" id="btn-deliver">Entregue</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MODAL: PULAR ENTREGA (RF012) ===== -->
+<div class="modal-backdrop" id="modal-skip" hidden>
+  <div class="modal">
+    <h3>Cliente ausente?</h3>
+    <p class="muted">O que fazer com o restante da rota?</p>
+    <label class="radio-row"><input type="radio" name="skip-mode" value="recalculate" checked> Recalcular a rota restante</label>
+    <label class="radio-row"><input type="radio" name="skip-mode" value="keep"> Manter a ordem atual</label>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" id="btn-skip-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-skip-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: FINALIZAÇÃO (RF013) ===== -->
+<div class="modal-backdrop" id="modal-finish" hidden>
+  <div class="modal modal-finish">
+    <span class="finish-check">&#10003;</span>
+    <h3 id="finish-count">0 entregas realizadas</h3>
+    <div class="finish-stats">
+      <div><span id="finish-time">0h00</span><label>tempo</label></div>
+      <div><span id="finish-distance">0 km</span><label>distância</label></div>
+      <div><span id="finish-skipped">0</span><label>pulados</label></div>
+    </div>
+    <button class="btn btn-primary btn-block" id="btn-finish-close">Voltar para rotas</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js?v=9"></script>
+</body>
+</html>
